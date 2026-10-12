@@ -953,6 +953,8 @@ qml_modules += {
 
 qml_tests = {
     'tst_FSM': files('tests/tst_FSM.qml'),
+    'tst_PlayerToolbarVisibilityFSM': files('tests/tst_PlayerToolbarVisibilityFSM.qml'),
+    'tst_PlayerPlaylistVisibilityFSM': files('tests/tst_PlayerPlaylistVisibilityFSM.qml'),
 }
 
 qmllibs = []
@@ -1356,6 +1358,53 @@ if qt6_dep.found()
             'suite': ['qt'],
             'include_directories' : qt_include_dir,
             'link_with': [libvlccore, libvlc],
+            'dependencies': [qt6_dep, qt_extra_deps, qtest_qt6_dep]
+        }
+
+        vlc_tests += {
+            'name': 'test_qt_controlbar_layout',
+            'sources': files(
+                'tests/test_controlbar_layout.cpp',
+                'player/control_list_model.cpp',
+                'player/control_list_model.hpp',
+                'player/player_controlbar_model.cpp',
+                'player/player_controlbar_model.hpp',
+                'dialogs/toolbar/controlbar_profile.cpp',
+                'dialogs/toolbar/controlbar_profile.hpp',
+                'dialogs/toolbar/controlbar_profile_model.cpp',
+                'dialogs/toolbar/controlbar_profile_model.hpp'
+            ),
+            'moc_sources': files(
+                'tests/test_controlbar_layout.cpp'
+            ),
+            'moc_headers': files(
+                'player/control_list_model.hpp',
+                'player/player_controlbar_model.hpp',
+                'dialogs/toolbar/controlbar_profile.hpp',
+                'dialogs/toolbar/controlbar_profile_model.hpp'
+            ),
+            'suite': ['qt'],
+            'include_directories' : qt_include_dir,
+            'link_with': [libvlccore],
+            'dependencies': [qt6_dep, qt_extra_deps, qtest_qt6_dep]
+        }
+
+        vlc_tests += {
+            'name': 'test_qt_color_scheme_model',
+            'sources': files(
+                'tests/test_color_scheme_model.cpp',
+                'util/color_scheme_model.cpp',
+                'util/color_scheme_model.hpp'
+            ),
+            'moc_sources': files(
+                'tests/test_color_scheme_model.cpp'
+            ),
+            'moc_headers': files(
+                'util/color_scheme_model.hpp'
+            ),
+            'suite': ['qt'],
+            'include_directories' : qt_include_dir,
+            'link_with': [libvlccore],
             'dependencies': [qt6_dep, qt_extra_deps, qtest_qt6_dep]
         }
 

@@ -17,6 +17,7 @@
 *****************************************************************************/
 
 #include <QtQuickTest>
+#include <QtQml/qqml.h>
 #include "qml_test.hpp"
 
 // not much right now, type registration & initialisation may be required later on
@@ -36,9 +37,17 @@ int main(int argc, char **argv)
     QTEST_SET_MAIN_SOURCE_PATH
 
     Q_INIT_RESOURCE( util_assets );
+    Q_INIT_RESOURCE( player_assets );
 #ifdef QT_USE_QMLCACHEGEN
     Q_INIT_RESOURCE( util_cachegen );
+    Q_INIT_RESOURCE( player_cachegen );
 #endif
+
+    // Stand-ins for the C++ singletons that MainUI registers in the app,
+    // so player QML files can be loaded on their own.
+    const QString fakes = QStringLiteral(QUICK_TEST_SOURCE_DIR "/fakes/");
+    qmlRegisterSingletonType(QUrl::fromLocalFile(fakes + "MainCtx.qml"), "VLC.MainInterface", 1, 0, "MainCtx");
+    qmlRegisterSingletonType(QUrl::fromLocalFile(fakes + "Player.qml"), "VLC.Player", 1, 0, "Player");
 
     //run tests offscreen as the CI doesn't have a desktop environment
     qputenv("QT_QPA_PLATFORM", "offscreen");

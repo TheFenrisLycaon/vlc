@@ -1879,6 +1879,48 @@ check_PROGRAMS += test_qt_navigation_model
 TESTS += test_qt_navigation_model
 
 
+test_qt_controlbar_layout_SOURCES = \
+	tests/test_controlbar_layout.cpp \
+	player/control_list_model.cpp player/control_list_model.hpp \
+	player/player_controlbar_model.cpp player/player_controlbar_model.hpp \
+	dialogs/toolbar/controlbar_profile.cpp dialogs/toolbar/controlbar_profile.hpp \
+	dialogs/toolbar/controlbar_profile_model.cpp dialogs/toolbar/controlbar_profile_model.hpp
+
+nodist_test_qt_controlbar_layout_SOURCES = \
+	tests/test_controlbar_layout.moc \
+	player/control_list_model.moc.cpp \
+	player/player_controlbar_model.moc.cpp \
+	dialogs/toolbar/controlbar_profile.moc.cpp \
+	dialogs/toolbar/controlbar_profile_model.moc.cpp
+
+BUILT_SOURCES += tests/test_controlbar_layout.moc
+CLEANFILES += tests/test_controlbar_layout.moc
+test_qt_controlbar_layout_CPPFLAGS = $(QT_QTEST_COMMON_cppflags)
+test_qt_controlbar_layout_CXXFLAGS = $(QT_QTEST_COMMON_cxxflags)
+test_qt_controlbar_layout_LDADD = $(QT_QTEST_COMMON_ldadd)
+test_qt_controlbar_layout_LDFLAGS = $(QT_QTEST_COMMON_ldflags)
+check_PROGRAMS += test_qt_controlbar_layout
+TESTS += test_qt_controlbar_layout
+
+
+test_qt_color_scheme_model_SOURCES = \
+	tests/test_color_scheme_model.cpp \
+	util/color_scheme_model.cpp util/color_scheme_model.hpp
+
+nodist_test_qt_color_scheme_model_SOURCES = \
+	tests/test_color_scheme_model.moc \
+	util/color_scheme_model.moc.cpp
+
+BUILT_SOURCES += tests/test_color_scheme_model.moc
+CLEANFILES += tests/test_color_scheme_model.moc
+test_qt_color_scheme_model_CPPFLAGS = $(QT_QTEST_COMMON_cppflags)
+test_qt_color_scheme_model_CXXFLAGS = $(QT_QTEST_COMMON_cxxflags)
+test_qt_color_scheme_model_LDADD = $(QT_QTEST_COMMON_ldadd)
+test_qt_color_scheme_model_LDFLAGS = $(QT_QTEST_COMMON_ldflags)
+check_PROGRAMS += test_qt_color_scheme_model
+TESTS += test_qt_color_scheme_model
+
+
 endif
 
 QML_LOG_COMPILER = $(builddir)/qml_test -input
@@ -1889,10 +1931,12 @@ nodist_qml_test_SOURCES = tests/qml_test.moc.cpp
 CLEANFILES += $(nodist_qml_test_SOURCES)
 qml_test_CPPFLAGS = $(libqt_plugin_la_CPPFLAGS)
 qml_test_CXXFLAGS = $(AM_CXXFLAGS) $(QT_CFLAGS) -fPIC $(CXXFLAGS_qt) ${QT_QUICK_TEST_CFLAGS} -DQUICK_TEST_SOURCE_DIR="\"${srcdir}/tests\"" -I"${builddir}/tests"
-qml_test_LDADD = $(QT_INDIRECT_LIBS) ${QT_QUICK_TEST_LIBS} $(QT_LIBS) $(LIBS_qt) libqml_module_util.a
+qml_test_LDADD = $(QT_INDIRECT_LIBS) ${QT_QUICK_TEST_LIBS} $(QT_LIBS) $(LIBS_qt) libqml_module_util.a libqml_module_player.a
 qml_test_LDFLAGS = $(AM_LDFLAGS) $(QT_QUICK_TEST_LDFLAGS)
 check_PROGRAMS += qml_test
-EXTRA_DIST += tests/tst_FSM.qml
-TESTS += tests/tst_FSM.qml
+EXTRA_DIST += tests/tst_FSM.qml \
+	tests/tst_PlayerToolbarVisibilityFSM.qml tests/tst_PlayerPlaylistVisibilityFSM.qml \
+	tests/fakes/MainCtx.qml tests/fakes/Player.qml
+TESTS += tests/tst_FSM.qml tests/tst_PlayerToolbarVisibilityFSM.qml tests/tst_PlayerPlaylistVisibilityFSM.qml
 endif
 endif
