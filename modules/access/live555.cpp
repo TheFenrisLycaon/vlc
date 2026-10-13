@@ -613,7 +613,8 @@ static void continueAfterDESCRIBE( RTSPClient* client, int result_code,
         if( !strncmp(client_heimdall->serverString(), "Kasenna", 7) ||
             !strncmp(client_heimdall->serverString(), "WMServer", 8) )
             p_sys->capabilities &= ~CAP_RATE_CONTROL;
-        if( !strncmp(client_heimdall->serverString(), "Heimdall/", 4) )
+        if( !strncmp(client_heimdall->serverString(), "VLC/", 4) ||
+            !strncmp(client_heimdall->serverString(), "Heimdall/", 9) )
             p_sys->capabilities |= (CAP_SUBSESSION_TEARDOWN|CAP_SUBSESSION_PAUSE);
     }
 #endif

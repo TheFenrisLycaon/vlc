@@ -799,7 +799,7 @@ static int InitSout( input_thread_t * p_input )
         if( keep_sout )
             var_SetBool( p_input, "sout-keep", true );
     }
-    if( psz && strncasecmp( priv->p_item->psz_uri, "heimdall:", 4 ) )
+    if( psz && strncasecmp( priv->p_item->psz_uri, "heimdall:", 9 ) )
     {
         priv->p_sout  = input_resource_RequestSout( priv->p_resource, psz );
         if( priv->p_sout == NULL )

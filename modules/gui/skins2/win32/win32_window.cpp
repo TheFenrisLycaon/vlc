@@ -55,7 +55,7 @@ Win32Window::Win32Window( intf_thread_t *pIntf, GenericWindow &rWindow,
     (void)hParentWindow;
     Win32Factory *pFactory = (Win32Factory*)Win32Factory::instance( getIntf() );
 
-    LPCTSTR heimdall_name =  TEXT("VlC Media Player");
+    LPCTSTR heimdall_name =  TEXT("Heimdall Media Player");
     LPCTSTR heimdall_class = TEXT("SkinWindowClass");
 
     // Create the window

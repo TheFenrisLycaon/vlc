@@ -378,7 +378,7 @@ static void HeimdallLibraryDataTypesIntegrationWriteID3v1Tag(NSMutableData *data
     memcpy(tag + 33, "Factory Artist", 14);
     memcpy(tag + 63, "Factory Album", 13);
     memcpy(tag + 93, "2026", 4);
-    memcpy(tag + 97, "Heimdall test fixture", 16);
+    memcpy(tag + 97, "Heimdall test fixture", 21);
     tag[127] = 17; // Rock, from the ID3v1 genre table.
     [data appendBytes:tag length:sizeof(tag)];
 }

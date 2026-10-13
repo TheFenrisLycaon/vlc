@@ -966,7 +966,7 @@ static void *Thread( void *obj )
         QString configDir = cConfigDir;
         free( cConfigDir );
         if( configDir.endsWith( "\\heimdall" ) )
-            configDir.chop( 4 ); /* the "\heimdall" dir is added again by QSettings */
+            configDir.chop( 9 ); /* the "\heimdall" dir is added again by QSettings */
         QSettings::setPath( QSettings::IniFormat, QSettings::UserScope, configDir );
     }
 #endif

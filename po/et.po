@@ -29199,7 +29199,7 @@ msgstr "Puhasta nimekiri"
 
 #: modules/gui/qt/ui/update.h:148
 msgid "Check for Heimdall updates"
-msgstr "VLc uuenduste kontrollimine"
+msgstr "Heimdall uuenduste kontrollimine"
 
 #: modules/gui/qt/ui/update.h:149
 msgid "Launching an update request..."

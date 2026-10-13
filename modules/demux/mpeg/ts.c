@@ -2593,7 +2593,7 @@ static block_t * ProcessTSPacket( demux_t *p_demux, ts_pid_t *pid, block_t *p_pk
                 //p_pkt->i_flags |= BLOCK_FLAG_DISCONTINUITY;
 
                 /* ... or don't ignore for our Bluray still frames and seek hacks */
-                if(p[5] == 0x82 && !strncmp((const char *)&p[7], "HEIMDALL_DISCONTINU", 14))
+                if(p[5] == 0x82 && !strncmp((const char *)&p[7], "VLC_DISCONTINU", 14))
                     p_pkt->i_flags |= BLOCK_FLAG_PRIVATE_SOURCE_RANDOM_ACCESS;
             }
 #if 0

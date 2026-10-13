@@ -44,7 +44,7 @@ OS2Window::OS2Window( intf_thread_t *pIntf, GenericWindow &rWindow,
     (void)hParentWindow;
     OS2Factory *pFactory = (OS2Factory*)OS2Factory::instance( getIntf() );
 
-    PCSZ  heimdall_name  = "VlC Media Player";
+    PCSZ  heimdall_name  = "Heimdall Media Player";
     PCSZ  heimdall_class = "SkinWindowClass";
     ULONG flFrame = 0;
 
