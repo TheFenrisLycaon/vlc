@@ -18,6 +18,9 @@ Done by hand, that can't be reviewed. So the rename is **one script that can be 
 | `Vlc` | `Heimdall` | `GstVlcVideoPool` → `GstHeimdallVideoPool` |
 | `VLC` inside an all-caps name | `HEIMDALL` | `VLC_TICK_FROM_MS` → `HEIMDALL_TICK_FROM_MS`, `PKG_ENABLE_MODULES_VLC` → `..._HEIMDALL` |
 | `VLC` anywhere else (prose, CamelCase) | `Heimdall` | "VLC media player" → "Heimdall media player", `VLCStyle` → `HeimdallStyle`, `QVLCFrame` → `QHeimdallFrame` |
+| `videolan` | `lycaria` | `org.videolan.*` → `com.lycaria.*` (asked 2026-10-13) |
+| `VideoLAN`, `Videolan`, `VideoLan` | `Lycaria` | "the VideoLAN team" → "the Lycaria team" |
+| `VIDEOLAN` | `LYCARIA` | |
 
 Names that follow from this:
 - **Programs:** `heimdall`, `cheimdall`, `rheimdall`, `qheimdall`, `nheimdall`.
@@ -26,14 +29,14 @@ Names that follow from this:
 - **Settings:** `~/.config/heimdall/heimdallrc`, and the Qt settings file `heimdall-qt-interface`.
 - **Lua scripts:** the `vlc.` API becomes `heimdall.`.
 - **Desktop files:** `heimdall.desktop`. The D-Bus name becomes `org.mpris.MediaPlayer2.heimdall`.
-- **Apple and Android ids:** `org.videolan.vlc` becomes `org.videolan.heimdall`. (Say if you'd rather use your own id, like `io.github.thefenrislycaon.heimdall`.)
+- **Apple and Android ids:** `org.videolan.vlc` becomes `com.lycaria.heimdall` (picked 2026-10-13). The script runs this rule before the general `vlc` → `heimdall` rule, so it never produces `org.videolan.heimdall`.
 
 ## What is NOT renamed (skip list)
 
 - **Copyright and license text.** The GPL and LGPL require keeping it. That means `COPYING`, `COPYING.LIB`, `AUTHORS`, `THANKS`, and every line with `Copyright` or `VLC authors and VideoLAN`.
 - **Upstream history:** `NEWS`, `ChangeLog*`, and the git history itself.
 - **Every URL** (`http(s)://…`, `git@…`). Renaming them would break downloads (contribs, prebuilt packages), links, and the XSPF playlist namespace `http://www.videolan.org/vlc/playlist/ns/0/`, which other players read.
-- **`VideoLAN`**, the organization name. It doesn't contain "vlc", so it's untouched anyway.
+- **`VideoLAN` inside copyright lines and URLs.** It's renamed to Lycaria everywhere else (see the mapping). "VLC authors and VideoLAN" in copyright notices stays, and so do `videolan.org` addresses, the `registry.videolan.org` CI images and `code.videolan.org` links, which would break if renamed. "Based on VLC by VideoLAN" in the credits also stays, because it names the original.
 - **Third-party code:** patches in `contrib/src/*/*.patch`, which patch other projects. A one-line note per skipped folder goes in the script.
 - **Binary files.** Only text files are edited.
 
